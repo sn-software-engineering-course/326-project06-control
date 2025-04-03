@@ -32,6 +32,17 @@ public class Evaluator {
         }));
     }
 
+    // I guess it should be moved to LObject class
+    private static boolean LObjectToBoolean(LObject obj) {
+        if (obj instanceof LInteger) {
+            return ((LInteger) obj).value != 0;
+        }
+        if (obj instanceof LList) {
+            return !((LList) obj).content.isEmpty();
+        }
+        return true;
+    }
+
     private static LObject handleLet(LList list, Environment env, boolean inplace) {
         final LList bindings = (LList) list.content.get(1);
         final Environment newEnv = new Environment(env);
@@ -43,23 +54,65 @@ public class Evaluator {
     }
 
     private static LObject handleDo(LList list, Environment env) {
-        // TODO: YOUR CODE HERE
-        return null;
+        int n = list.content.size();
+        for (int i = 1; i < n - 1; i++)
+            eval(list.content.get(i), env);
+        return eval(list.content.get(n - 1), env);
     }
 
     private static LObject handleIF(LList list, Environment env) {
-        // TODO: YOUR CODE HERE
-        return null;
+        final LObject cond = eval(list.content.get(1), env);
+        return LObjectToBoolean(cond) ? eval(list.content.get(2), env) : eval(list.content.get(3), env);
     }
 
     private static LFunction handleFnStar(LList list, Environment env) {
-        // TODO: YOUR CODE HERE
-        return null;
+        LList binds = (LList) list.content.get(1);
+        LObject functionBody = list.content.get(2);
+        return new LFunction(binds.content.size(), args -> {
+            Environment newEnv = new Environment(env);
+            for (int i = 0; i < binds.content.size(); i++) {
+                LSymbol param = (LSymbol) binds.content.get(i);
+                newEnv.define(param, args.content.get(i + 1)); // write param
+            }
+            return eval(functionBody, newEnv);
+        });
     }
 
     private static LObject eval(LObject obj, Environment env) {
-        // TODO: YOUR CODE HERE
-        return null;
+        if (obj instanceof LInteger || obj instanceof LString || (obj instanceof LList && ((LList) obj).content.isEmpty())) {
+            return obj;
+        }
+        if (obj instanceof LSymbol) {
+            return env.lookup((LSymbol) obj);
+        }
+        if (obj instanceof LList) {
+            LList list = (LList) obj;
+            LObject first = list.content.get(0);
+            if (first.equals(SYMBOL_LET) || first.equals(SYMBOL_LET_STAR)) {
+                return handleLet(list, env, first.equals(SYMBOL_LET_STAR));
+            }
+            if (first.equals(SYMBOL_DO)) {
+                return handleDo(list, env);
+            }
+            if (first.equals(SYMBOL_IF)) {
+                return handleIF(list, env);
+            }
+            if (first.equals(SYMBOL_FN_STAR)) {
+                return handleFnStar(list, env);
+            }
+            LObject operator = eval(first, env);
+            if (!(operator instanceof LFunction)) {
+                throw new RuntimeException("First element is not a function");
+            }
+            LFunction func = (LFunction) operator;
+            ArrayList<LObject> evaluatedList = new ArrayList<>();
+            evaluatedList.add(operator);
+            for (int i = 1; i < list.content.size(); i++) {
+                evaluatedList.add(eval(list.content.get(i), env));
+            }
+            return func.call(new LList(evaluatedList));
+        }
+        throw new RuntimeException("Unknown LObject type: " + obj);
     }
 
     public static LObject eval(LObject obj) {
