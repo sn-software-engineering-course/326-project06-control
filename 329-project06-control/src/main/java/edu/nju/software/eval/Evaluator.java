@@ -32,17 +32,6 @@ public class Evaluator {
         }));
     }
 
-    // I guess it should be moved to LObject class
-    private static boolean LObjectToBoolean(LObject obj) {
-        if (obj instanceof LInteger) {
-            return ((LInteger) obj).value != 0;
-        }
-        if (obj instanceof LList) {
-            return !((LList) obj).content.isEmpty();
-        }
-        return true;
-    }
-
     private static LObject handleLet(LList list, Environment env, boolean inplace) {
         final LList bindings = (LList) list.content.get(1);
         final Environment newEnv = new Environment(env);
@@ -62,18 +51,14 @@ public class Evaluator {
 
     private static LObject handleIF(LList list, Environment env) {
         final LObject cond = eval(list.content.get(1), env);
-        return LObjectToBoolean(cond) ? eval(list.content.get(2), env) : eval(list.content.get(3), env);
+        return cond.toBoolean() ? eval(list.content.get(2), env) : eval(list.content.get(3), env);
     }
 
     private static LFunction handleFnStar(LList list, Environment env) {
         LList binds = (LList) list.content.get(1);
         LObject functionBody = list.content.get(2);
         return new LFunction(binds.content.size(), args -> {
-            Environment newEnv = new Environment(env);
-            for (int i = 0; i < binds.content.size(); i++) {
-                LSymbol param = (LSymbol) binds.content.get(i);
-                newEnv.define(param, args.content.get(i + 1)); // write param
-            }
+            Environment newEnv = new Environment(env, binds, args);
             return eval(functionBody, newEnv);
         });
     }

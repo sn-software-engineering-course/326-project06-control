@@ -19,8 +19,11 @@ public class Environment {
     }
 
     public Environment(Environment parent, LList binds, LList args) {
-        // TODO: YOUR CODE HERE
-        this.parent = null;
+        this.parent = parent;
+        for (int i = 0; i < binds.content.size(); i++) {
+            LSymbol param = (LSymbol) binds.content.get(i);
+            define(param, args.content.get(i + 1));
+        }
     }
 
     public void define(LSymbol symbol, LObject value) {
